@@ -56,7 +56,7 @@ class HueViewModel : ViewModel() {
                     connectionState = ConnectionState.RateLimited
                     return
                 }
-
+                
                 response.body?.string()?.let { body ->
                     try {
                         Log.d(TAG, "Discovery response: $body")
@@ -154,7 +154,7 @@ class HueViewModel : ViewModel() {
                             val light = lights.getJSONObject(lightId)
                             val modelId = light.getString("modelid")
                             Log.d(TAG, "Found light $lightId with model: $modelId")
-
+                            
                             if (modelId.contains("Go", ignoreCase = true)) {
                                 foundGoLight = true
                                 val stateJson = JSONObject(state).apply {
@@ -174,7 +174,7 @@ class HueViewModel : ViewModel() {
                                 }
                             }
                         }
-
+                        
                         if (!foundGoLight) {
                             Log.w(TAG, "No Hue Go lights found!")
                             connectionState = ConnectionState.Failed
