@@ -275,7 +275,11 @@ class HueViewModel(
     override fun onCleared() {
         super.onCleared()
         stopColorCycle()
-        client.dispatcher.executorService.shutdown()
+        // Turn off lights before shutting down
+        viewModelScope.launch {
+            turnOffLights()
+            client.dispatcher.executorService.shutdown()
+        }
     }
 
     private suspend fun fetchLights() {
@@ -299,7 +303,7 @@ class HueViewModel(
                                 ?.filter { it.isNotEmpty() }
                                 ?.toSet()
                                 ?: emptySet()
-
+                            
                             val lightsList = mutableListOf<HueLight>()
                             lights.keys().forEach { lightId ->
                                 val light = lights.getJSONObject(lightId)
@@ -327,7 +331,7 @@ class HueViewModel(
             if (light.id == lightId) light.copy(isSelected = !light.isSelected)
             else light
         }
-
+        
         // Save selected lights to database
         viewModelScope.launch {
             repository.updateSelectedLights(

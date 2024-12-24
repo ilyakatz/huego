@@ -12,8 +12,8 @@ class HueRepository(context: Context) {
     }
 
     suspend fun saveCredentials(
-        bridgeIp: String,
-        username: String,
+        bridgeIp: String, 
+        username: String, 
         discoveryMethod: String,
         selectedLightIds: Set<String> = emptySet()
     ) {
