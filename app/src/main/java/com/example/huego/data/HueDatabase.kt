@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [HueCredentials::class], version = 1)
+@Database(entities = [HueCredentials::class], version = 2)
 abstract class HueDatabase : RoomDatabase() {
     abstract fun hueDao(): HueDao
 
@@ -19,7 +19,9 @@ abstract class HueDatabase : RoomDatabase() {
                     context.applicationContext,
                     HueDatabase::class.java,
                     "hue_database"
-                ).build()
+                )
+                .fallbackToDestructiveMigration()
+                .build()
                 INSTANCE = instance
                 instance
             }

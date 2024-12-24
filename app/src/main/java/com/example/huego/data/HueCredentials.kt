@@ -9,5 +9,6 @@ data class HueCredentials(
     val id: Int = 1,  // We'll only ever have one set of credentials
     val bridgeIp: String,
     val username: String,
-    val discoveryMethod: String
+    val discoveryMethod: String,
+    val selectedLightIds: String = ""  // Comma-separated list of selected light IDs
 ) 

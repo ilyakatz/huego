@@ -292,6 +292,14 @@ class HueViewModel(
                             Log.d(TAG, "Lights response: $responseBody")
                             val lights = JSONObject(responseBody)
                             
+                            // Get saved selected light IDs
+                            val savedLightIds = repository.getCredentials()
+                                ?.selectedLightIds
+                                ?.split(",")
+                                ?.filter { it.isNotEmpty() }
+                                ?.toSet()
+                                ?: emptySet()
+
                             val lightsList = mutableListOf<HueLight>()
                             lights.keys().forEach { lightId ->
                                 val light = lights.getJSONObject(lightId)
@@ -299,7 +307,8 @@ class HueViewModel(
                                     HueLight(
                                         id = lightId,
                                         name = light.getString("name"),
-                                        productName = light.getString("productname")
+                                        productName = light.getString("productname"),
+                                        isSelected = lightId in savedLightIds
                                     )
                                 )
                             }
@@ -317,6 +326,16 @@ class HueViewModel(
         _availableLights.value = _availableLights.value.map { light ->
             if (light.id == lightId) light.copy(isSelected = !light.isSelected)
             else light
+        }
+
+        // Save selected lights to database
+        viewModelScope.launch {
+            repository.updateSelectedLights(
+                _availableLights.value
+                    .filter { it.isSelected }
+                    .map { it.id }
+                    .toSet()
+            )
         }
     }
 

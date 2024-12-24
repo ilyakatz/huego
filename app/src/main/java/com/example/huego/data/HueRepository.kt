@@ -11,15 +11,33 @@ class HueRepository(context: Context) {
         hueDao.getCredentials()
     }
 
-    suspend fun saveCredentials(bridgeIp: String, username: String, discoveryMethod: String) {
+    suspend fun saveCredentials(
+        bridgeIp: String,
+        username: String,
+        discoveryMethod: String,
+        selectedLightIds: Set<String> = emptySet()
+    ) {
         withContext(Dispatchers.IO) {
             hueDao.saveCredentials(
                 HueCredentials(
                     bridgeIp = bridgeIp,
                     username = username,
-                    discoveryMethod = discoveryMethod
+                    discoveryMethod = discoveryMethod,
+                    selectedLightIds = selectedLightIds.joinToString(",")
                 )
             )
+        }
+    }
+
+    suspend fun updateSelectedLights(selectedLightIds: Set<String>) {
+        withContext(Dispatchers.IO) {
+            hueDao.getCredentials()?.let { credentials ->
+                hueDao.saveCredentials(
+                    credentials.copy(
+                        selectedLightIds = selectedLightIds.joinToString(",")
+                    )
+                )
+            }
         }
     }
 
