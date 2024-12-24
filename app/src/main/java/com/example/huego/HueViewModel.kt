@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.huego.data.HuePreferences
+import com.example.huego.discovery.BridgeDiscovery
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -39,6 +40,8 @@ class HueViewModel(
         object RateLimited : ConnectionState()
     }
 
+    private val bridgeDiscovery = BridgeDiscovery(application)
+
     init {
         // Try to use cached credentials first
         val savedIp = prefs.bridgeIp
@@ -56,6 +59,31 @@ class HueViewModel(
 
     private fun discoverBridge() {
         connectionState = ConnectionState.Discovering
+        viewModelScope.launch {
+            try {
+                // Try mDNS first with a timeout
+                val bridgeIpFromMdns = withTimeoutOrNull(5000) { // 5 second timeout
+                    bridgeDiscovery.discoverBridge()
+                }
+                
+                if (bridgeIpFromMdns != null) {
+                    Log.d(TAG, "Bridge found via mDNS: $bridgeIpFromMdns")
+                    bridgeIp = bridgeIpFromMdns
+                    prefs.bridgeIp = bridgeIp
+                    createUser()
+                } else {
+                    // Fall back to meethue.com discovery
+                    Log.d(TAG, "mDNS discovery failed, trying meethue.com")
+                    discoverBridgeViaCloud()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error during bridge discovery", e)
+                discoverBridgeViaCloud()
+            }
+        }
+    }
+
+    private fun discoverBridgeViaCloud() {
         val request = Request.Builder()
             .url("https://discovery.meethue.com")
             .build()
