@@ -26,6 +26,11 @@ import androidx.compose.material.icons.filled.Light  // Strip light
 import androidx.compose.material.icons.filled.LightMode  // Go light
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Park
+import androidx.compose.material.icons.filled.PowerSettingsNew
+import androidx.compose.material.icons.filled.Star
 
 @Composable
 private fun getLightIcon(productName: String): ImageVector {
@@ -45,7 +50,8 @@ fun ConnectedState(
     availableLights: List<HueLight>,
     onLightToggled: (String) -> Unit,
     onSchemeSelected: (ColorScheme) -> Unit,
-    onStop: () -> Unit
+    onStop: () -> Unit,
+    onTurnOff: () -> Unit
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -101,6 +107,11 @@ fun ConnectedState(
                     containerColor = MaterialTheme.colorScheme.error
                 )
             ) {
+                Icon(
+                    imageVector = Icons.Default.Park,
+                    contentDescription = "Christmas Tree"
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Christmas Lights")
             }
             
@@ -110,7 +121,27 @@ fun ConnectedState(
                     containerColor = MaterialTheme.colorScheme.primary
                 )
             ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = "Star of David"
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text("Hanukkah Lights")
+            }
+
+            Button(
+                onClick = onTurnOff,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PowerSettingsNew,
+                    contentDescription = "Turn Off"
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Turn Off Lights")
             }
         } else {
             Text(
@@ -160,7 +191,8 @@ private fun ConnectedStatePreview() {
                 availableLights = sampleLights,
                 onLightToggled = {},
                 onSchemeSelected = {},
-                onStop = {}
+                onStop = {},
+                onTurnOff = {}
             )
         }
     }
@@ -186,7 +218,8 @@ private fun ConnectedStateRunningPreview() {
                 availableLights = emptyList(),
                 onLightToggled = {},
                 onSchemeSelected = {},
-                onStop = {}
+                onStop = {},
+                onTurnOff = {}
             )
         }
     }

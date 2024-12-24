@@ -46,7 +46,8 @@ fun ChristmasLightScreen(
                 onStop = {
                     isRunning = false
                     viewModel.stopColorCycle()
-                }
+                },
+                onTurnOff = viewModel::turnOffLights
             )
             is HueViewModel.ConnectionState.Failed -> FailedState(
                 onRetry = viewModel::retryConnection

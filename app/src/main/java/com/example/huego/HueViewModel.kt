@@ -229,9 +229,11 @@ class HueViewModel(
                 username?.let { user ->
                     availableLights.filter { it.isSelected }.forEach { light ->
                         try {
-                            val stateJson = JSONObject(state).apply {
-                                put("on", true)
-                                put("bri", 254)
+                            val stateJson = JSONObject(state)
+                            // Only add brightness and on=true for color states
+                            if (state.containsKey("xy")) {
+                                stateJson.put("on", true)
+                                stateJson.put("bri", 254)
                             }
 
                             val request = Request.Builder()
@@ -322,6 +324,13 @@ class HueViewModel(
         connectionState = ConnectionState.Connected
         viewModelScope.launch {
             fetchLights()
+        }
+    }
+
+    fun turnOffLights() {
+        viewModelScope.launch {
+            val offState = mapOf("on" to false)
+            setLightState(offState)
         }
     }
 } 
