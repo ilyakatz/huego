@@ -1,11 +1,7 @@
 package com.example.huego.ui.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import android.content.res.Configuration
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.*
@@ -15,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.huego.ui.theme.HueGoTheme
 
 @Composable
 fun RateLimitedState(
@@ -28,7 +25,7 @@ fun RateLimitedState(
     )
     Spacer(modifier = Modifier.height(16.dp))
     Text(
-        text = "Too many requests to discovery service.\nPlease wait a few minutes before trying again.",
+        text = "The Hue discovery service can only be queried once every 15 minutes.\n\nPlease wait before trying again.",
         style = MaterialTheme.typography.bodyLarge,
         textAlign = TextAlign.Center,
         color = MaterialTheme.colorScheme.error
@@ -40,9 +37,10 @@ fun RateLimitedState(
 }
 
 @Preview(showBackground = true)
+@Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
 @Composable
 private fun RateLimitedStatePreview() {
-    MaterialTheme {
+    HueGoTheme {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,

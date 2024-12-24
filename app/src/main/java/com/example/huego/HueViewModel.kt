@@ -1,11 +1,13 @@
 package com.example.huego
 
+import android.app.Application
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.huego.data.HuePreferences
 import kotlinx.coroutines.*
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
@@ -13,11 +15,14 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 
-class HueViewModel : ViewModel() {
+class HueViewModel(
+    application: Application
+) : AndroidViewModel(application) {
     companion object {
         private const val TAG = "HueViewModel"
     }
 
+    private val prefs = HuePreferences(application)
     private val client = OkHttpClient()
     private var colorCycleJob: Job? = null
     private var bridgeIp: String? = null
@@ -35,7 +40,18 @@ class HueViewModel : ViewModel() {
     }
 
     init {
-        discoverBridge()
+        // Try to use cached credentials first
+        val savedIp = prefs.bridgeIp
+        val savedUsername = prefs.username
+        
+        if (savedIp != null && savedUsername != null) {
+            bridgeIp = savedIp
+            username = savedUsername
+            connectionState = ConnectionState.Connected
+            Log.d(TAG, "Using cached bridge credentials")
+        } else {
+            discoverBridge()
+        }
     }
 
     private fun discoverBridge() {
@@ -63,6 +79,7 @@ class HueViewModel : ViewModel() {
                         val jsonArray = org.json.JSONArray(body)
                         if (jsonArray.length() > 0) {
                             bridgeIp = jsonArray.getJSONObject(0).getString("internalipaddress")
+                            prefs.bridgeIp = bridgeIp  // Cache the IP
                             createUser()
                         } else {
                             connectionState = ConnectionState.Failed
@@ -101,6 +118,7 @@ class HueViewModel : ViewModel() {
                         val responseObj = jsonArray.getJSONObject(0)
                         if (responseObj.has("success")) {
                             username = responseObj.getJSONObject("success").getString("username")
+                            prefs.username = username  // Cache the username
                             Log.i(TAG, "Successfully connected to bridge")
                             connectionState = ConnectionState.Connected
                         } else if (responseObj.has("error")) {
@@ -200,6 +218,8 @@ class HueViewModel : ViewModel() {
     }
 
     fun retryConnection() {
+        // Clear cached credentials on manual retry
+        prefs.clear()
         discoverBridge()
     }
 
