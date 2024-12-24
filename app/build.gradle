@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.example.huechristmas'
+    namespace 'com.example.huego'
     compileSdk 34
 
     defaultConfig {
-        applicationId "com.example.huechristmas"
+        applicationId "com.example.huego"
         minSdk 21
         targetSdk 34
         versionCode 1

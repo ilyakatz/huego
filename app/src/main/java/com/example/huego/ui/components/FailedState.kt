@@ -1,4 +1,4 @@
-package com.example.huechristmas.ui.components
+package com.example.huego.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

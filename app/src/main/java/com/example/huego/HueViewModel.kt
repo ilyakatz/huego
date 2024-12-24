@@ -1,4 +1,4 @@
-package com.example.huechristmas
+package com.example.huego
 
 import android.util.Log
 import androidx.compose.runtime.getValue

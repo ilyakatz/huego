@@ -1,12 +1,12 @@
-package com.example.huechristmas.ui
+package com.example.huego.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.example.huechristmas.HueViewModel
-import com.example.huechristmas.ui.components.*
+import com.example.huego.HueViewModel
+import com.example.huego.ui.components.*
 
 @Composable
 fun ChristmasLightScreen(

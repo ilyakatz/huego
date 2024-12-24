@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Hue Christmas"
+rootProject.name = "Hue Go"
 include ':app' 
