@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.huego.data.HuePreferences
+import com.example.huego.data.HueRepository
 import com.example.huego.discovery.BridgeDiscovery
 import kotlinx.coroutines.*
 import okhttp3.*
@@ -23,7 +23,7 @@ class HueViewModel(
         private const val TAG = "HueViewModel"
     }
 
-    private val prefs = HuePreferences(application)
+    private val repository = HueRepository(application)
     private val client = OkHttpClient()
     private var colorCycleJob: Job? = null
     private var bridgeIp: String? = null
@@ -44,17 +44,39 @@ class HueViewModel(
     private val bridgeDiscovery = BridgeDiscovery(application)
 
     init {
-        // Try to use cached credentials first
-        val savedIp = prefs.bridgeIp
-        val savedUsername = prefs.username
-        
-        if (savedIp != null && savedUsername != null) {
-            bridgeIp = savedIp
-            username = savedUsername
-            connectionState = ConnectionState.Connected
-            Log.d(TAG, "Using cached bridge credentials")
-        } else {
-            discoverBridge()
+        viewModelScope.launch {
+            val credentials = repository.getCredentials()
+            if (credentials != null) {
+                Log.d(TAG, "Found cached credentials - IP: ${credentials.bridgeIp}, Username: ${credentials.username}")
+                bridgeIp = credentials.bridgeIp
+                username = credentials.username
+                // Verify the connection works with cached credentials
+                try {
+                    withContext(Dispatchers.IO) {
+                        val request = Request.Builder()
+                            .url("http://${credentials.bridgeIp}/api/${credentials.username}/config")
+                            .build()
+                        
+                        client.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                Log.d(TAG, "Successfully verified cached credentials")
+                                connectionState = ConnectionState.Connected
+                            } else {
+                                Log.w(TAG, "Cached credentials failed, starting fresh discovery")
+                                repository.clearCredentials()
+                                discoverBridge()
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error verifying cached credentials", e)
+                    repository.clearCredentials()
+                    discoverBridge()
+                }
+            } else {
+                Log.d(TAG, "No cached credentials found")
+                discoverBridge()
+            }
         }
     }
 
@@ -70,7 +92,6 @@ class HueViewModel(
                 if (bridgeIpFromMdns != null) {
                     Log.d(TAG, "Bridge found via mDNS: $bridgeIpFromMdns")
                     bridgeIp = bridgeIpFromMdns
-                    prefs.bridgeIp = bridgeIp
                     createUser()
                 } else {
                     // Fall back to meethue.com discovery
@@ -108,7 +129,6 @@ class HueViewModel(
                         val jsonArray = org.json.JSONArray(body)
                         if (jsonArray.length() > 0) {
                             bridgeIp = jsonArray.getJSONObject(0).getString("internalipaddress")
-                            prefs.bridgeIp = bridgeIp  // Cache the IP
                             createUser()
                         } else {
                             connectionState = ConnectionState.Failed
@@ -146,8 +166,13 @@ class HueViewModel(
                         val responseObj = jsonArray.getJSONObject(0)
                         if (responseObj.has("success")) {
                             username = responseObj.getJSONObject("success").getString("username")
-                            prefs.username = username
-                            Log.i(TAG, "Successfully connected to bridge")
+                            viewModelScope.launch {
+                                repository.saveCredentials(
+                                    bridgeIp = bridgeIp!!,
+                                    username = username!!,
+                                    discoveryMethod = "manual"
+                                )
+                            }
                             connectionState = ConnectionState.Connected
                         } else if (responseObj.has("error")) {
                             val error = responseObj.getJSONObject("error")
@@ -180,63 +205,65 @@ class HueViewModel(
     }
 
     private suspend fun setLightState(state: Map<String, Any>) {
-        bridgeIp?.let { ip ->
-            username?.let { user ->
-                Log.d(TAG, "Attempting to set light state. IP: $ip, Username: $user")
-                // Get all lights
-                val lightsRequest = Request.Builder()
-                    .url("http://$ip/api/$user/lights")
-                    .build()
+        withContext(Dispatchers.IO) {  // Move network operations to IO dispatcher
+            bridgeIp?.let { ip ->
+                username?.let { user ->
+                    Log.d(TAG, "Attempting to set light state. IP: $ip, Username: $user")
+                    // Get all lights
+                    val lightsRequest = Request.Builder()
+                        .url("http://$ip/api/$user/lights")
+                        .build()
 
-                try {
-                    client.newCall(lightsRequest).execute().use { response ->
-                        val responseBody = response.body?.string() ?: "{}"
-                        Log.d(TAG, "Lights response: $responseBody")
-                        val lights = JSONObject(responseBody)
-                        
-                        // Update each Hue Go light
-                        var foundGoLight = false
-                        lights.keys().forEach { lightId ->
-                            val light = lights.getJSONObject(lightId)
-                            val modelId = light.getString("modelid")
-                            Log.d(TAG, "Found light $lightId with model: $modelId")
+                    try {
+                        client.newCall(lightsRequest).execute().use { response ->
+                            val responseBody = response.body?.string() ?: "{}"
+                            Log.d(TAG, "Lights response: $responseBody")
+                            val lights = JSONObject(responseBody)
                             
-                            if (modelId.contains("Go", ignoreCase = true)) {
-                                foundGoLight = true
-                                val stateJson = JSONObject(state).apply {
-                                    put("on", true)
-                                    put("bri", 254)
-                                }
-                                Log.d(TAG, "Setting state for light $lightId: $stateJson")
+                            // Update each Hue Go light
+                            var foundGoLight = false
+                            lights.keys().forEach { lightId ->
+                                val light = lights.getJSONObject(lightId)
+                                val modelId = light.getString("modelid")
+                                Log.d(TAG, "Found light $lightId with model: $modelId")
+                                
+                                if (modelId.contains("Go", ignoreCase = true)) {
+                                    foundGoLight = true
+                                    val stateJson = JSONObject(state).apply {
+                                        put("on", true)
+                                        put("bri", 254)
+                                    }
+                                    Log.d(TAG, "Setting state for light $lightId: $stateJson")
 
-                                val request = Request.Builder()
-                                    .url("http://$ip/api/$user/lights/$lightId/state")
-                                    .put(stateJson.toString().toRequestBody("application/json".toMediaType()))
-                                    .build()
+                                    val request = Request.Builder()
+                                        .url("http://$ip/api/$user/lights/$lightId/state")
+                                        .put(stateJson.toString().toRequestBody("application/json".toMediaType()))
+                                        .build()
 
-                                client.newCall(request).execute().use { stateResponse ->
-                                    val stateResponseBody = stateResponse.body?.string()
-                                    Log.d(TAG, "State update response: $stateResponseBody")
+                                    client.newCall(request).execute().use { stateResponse ->
+                                        val stateResponseBody = stateResponse.body?.string()
+                                        Log.d(TAG, "State update response: $stateResponseBody")
+                                    }
                                 }
                             }
+                            
+                            if (!foundGoLight) {
+                                Log.w(TAG, "No Hue Go lights found!")
+                                connectionState = ConnectionState.Failed
+                            }
                         }
-                        
-                        if (!foundGoLight) {
-                            Log.w(TAG, "No Hue Go lights found!")
-                            connectionState = ConnectionState.Failed
-                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error setting light state", e)
+                        connectionState = ConnectionState.Failed
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error setting light state", e)
+                } ?: run {
+                    Log.e(TAG, "Username is null!")
                     connectionState = ConnectionState.Failed
                 }
             } ?: run {
-                Log.e(TAG, "Username is null!")
+                Log.e(TAG, "Bridge IP is null!")
                 connectionState = ConnectionState.Failed
             }
-        } ?: run {
-            Log.e(TAG, "Bridge IP is null!")
-            connectionState = ConnectionState.Failed
         }
     }
 
@@ -246,9 +273,10 @@ class HueViewModel(
     }
 
     fun retryConnection() {
-        // Clear cached credentials on manual retry
-        prefs.clear()
-        discoverBridge()
+        viewModelScope.launch {
+            repository.clearCredentials()
+            discoverBridge()
+        }
     }
 
     fun onButtonPressed() {
