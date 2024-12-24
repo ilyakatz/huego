@@ -205,11 +205,10 @@ class HueViewModel(
     }
 
     private suspend fun setLightState(state: Map<String, Any>) {
-        withContext(Dispatchers.IO) {  // Move network operations to IO dispatcher
+        withContext(Dispatchers.IO) {
             bridgeIp?.let { ip ->
                 username?.let { user ->
                     Log.d(TAG, "Attempting to set light state. IP: $ip, Username: $user")
-                    // Get all lights
                     val lightsRequest = Request.Builder()
                         .url("http://$ip/api/$user/lights")
                         .build()
@@ -220,14 +219,13 @@ class HueViewModel(
                             Log.d(TAG, "Lights response: $responseBody")
                             val lights = JSONObject(responseBody)
                             
-                            // Update each Hue Go light
                             var foundGoLight = false
                             lights.keys().forEach { lightId ->
                                 val light = lights.getJSONObject(lightId)
-                                val modelId = light.getString("modelid")
-                                Log.d(TAG, "Found light $lightId with model: $modelId")
+                                val productName = light.getString("productname")
+                                Log.d(TAG, "Found light $lightId with product name: $productName")
                                 
-                                if (modelId.contains("Go", ignoreCase = true)) {
+                                if (productName.contains("Go", ignoreCase = true)) {
                                     foundGoLight = true
                                     val stateJson = JSONObject(state).apply {
                                         put("on", true)
@@ -256,13 +254,7 @@ class HueViewModel(
                         Log.e(TAG, "Error setting light state", e)
                         connectionState = ConnectionState.Failed
                     }
-                } ?: run {
-                    Log.e(TAG, "Username is null!")
-                    connectionState = ConnectionState.Failed
                 }
-            } ?: run {
-                Log.e(TAG, "Bridge IP is null!")
-                connectionState = ConnectionState.Failed
             }
         }
     }
