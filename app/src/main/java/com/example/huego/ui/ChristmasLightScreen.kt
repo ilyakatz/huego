@@ -36,9 +36,14 @@ fun ChristmasLightScreen(
             is HueViewModel.ConnectionState.ButtonPressed -> ButtonPressedState()
             is HueViewModel.ConnectionState.Connected -> ConnectedState(
                 isRunning = isRunning,
-                onToggle = { running ->
-                    isRunning = running
-                    if (running) viewModel.startColorCycle() else viewModel.stopColorCycle()
+                selectedScheme = viewModel.currentScheme,
+                onSchemeSelected = { scheme ->
+                    isRunning = true
+                    viewModel.startColorCycle(scheme)
+                },
+                onStop = {
+                    isRunning = false
+                    viewModel.stopColorCycle()
                 }
             )
             is HueViewModel.ConnectionState.Failed -> FailedState(

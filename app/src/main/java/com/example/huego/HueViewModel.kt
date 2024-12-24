@@ -15,6 +15,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import com.example.huego.model.ColorScheme
 
 class HueViewModel(
     application: Application
@@ -42,6 +43,19 @@ class HueViewModel(
     }
 
     private val bridgeDiscovery = BridgeDiscovery(application)
+
+    var currentScheme by mutableStateOf<ColorScheme?>(null)
+        private set
+    
+    private val christmasColors = listOf(
+        mapOf("xy" to listOf(0.675f, 0.322f)), // Red
+        mapOf("xy" to listOf(0.409f, 0.518f))  // Green
+    )
+    
+    private val hanukkahColors = listOf(
+        mapOf("xy" to listOf(0.167f, 0.040f)), // Blue
+        mapOf("xy" to listOf(0.313f, 0.328f))  // White
+    )
 
     init {
         viewModelScope.launch {
@@ -188,17 +202,18 @@ class HueViewModel(
         })
     }
 
-    fun startColorCycle() {
+    fun startColorCycle(scheme: ColorScheme) {
+        currentScheme = scheme
         colorCycleJob = viewModelScope.launch {
-            val christmasColors = listOf(
-                mapOf("xy" to listOf(0.675f, 0.322f)), // Red
-                mapOf("xy" to listOf(0.409f, 0.518f))  // Green
-            )
+            val colors = when (scheme) {
+                ColorScheme.CHRISTMAS -> christmasColors
+                ColorScheme.HANUKKAH -> hanukkahColors
+            }
             
             while (isActive) {
-                christmasColors.forEach { color ->
+                colors.forEach { color ->
                     setLightState(color)
-                    delay(2000) // Wait 2 seconds before next color
+                    delay(2000)
                 }
             }
         }
@@ -262,6 +277,7 @@ class HueViewModel(
     fun stopColorCycle() {
         colorCycleJob?.cancel()
         colorCycleJob = null
+        currentScheme = null
     }
 
     fun retryConnection() {
