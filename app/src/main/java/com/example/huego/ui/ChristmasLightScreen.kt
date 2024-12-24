@@ -30,7 +30,10 @@ fun ChristmasLightScreen(
     ) {
         when (viewModel.connectionState) {
             is HueViewModel.ConnectionState.Discovering -> DiscoveringState()
-            is HueViewModel.ConnectionState.WaitingForButton -> WaitingForButtonState()
+            is HueViewModel.ConnectionState.WaitingForButton -> WaitingForButtonState(
+                onButtonPressed = viewModel::onButtonPressed
+            )
+            is HueViewModel.ConnectionState.ButtonPressed -> ButtonPressedState()
             is HueViewModel.ConnectionState.Connected -> ConnectedState(
                 isRunning = isRunning,
                 onToggle = { running ->

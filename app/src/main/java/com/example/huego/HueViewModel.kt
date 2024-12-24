@@ -35,6 +35,7 @@ class HueViewModel(
     sealed class ConnectionState {
         object Discovering : ConnectionState()
         object WaitingForButton : ConnectionState()
+        object ButtonPressed : ConnectionState()
         object Connected : ConnectionState()
         object Failed : ConnectionState()
         object RateLimited : ConnectionState()
@@ -122,7 +123,6 @@ class HueViewModel(
     }
 
     private fun createUser() {
-        connectionState = ConnectionState.WaitingForButton
         val json = JSONObject().apply {
             put("devicetype", "christmas_app#android")
         }
@@ -146,13 +146,13 @@ class HueViewModel(
                         val responseObj = jsonArray.getJSONObject(0)
                         if (responseObj.has("success")) {
                             username = responseObj.getJSONObject("success").getString("username")
-                            prefs.username = username  // Cache the username
+                            prefs.username = username
                             Log.i(TAG, "Successfully connected to bridge")
                             connectionState = ConnectionState.Connected
                         } else if (responseObj.has("error")) {
                             val error = responseObj.getJSONObject("error")
                             Log.w(TAG, "Error from bridge: ${error.getString("description")}")
-                            connectionState = ConnectionState.Failed
+                            connectionState = ConnectionState.WaitingForButton
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Exception parsing response: ${e.message}", e)
@@ -249,6 +249,11 @@ class HueViewModel(
         // Clear cached credentials on manual retry
         prefs.clear()
         discoverBridge()
+    }
+
+    fun onButtonPressed() {
+        connectionState = ConnectionState.ButtonPressed
+        createUser()
     }
 
     override fun onCleared() {
