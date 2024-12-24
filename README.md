@@ -10,6 +10,12 @@ A simple Android app to control Philips Hue lights with holiday-themed color pat
 - Specifically targets any Philips Hue light
 - Shows connection status to your Hue Bridge
 
+## Screenshots
+
+| Discovery | Connected | Running |
+|-----------|-----------|---------|
+| ![Discovery](screenshots/discovery.png) | ![Connected](screenshots/light_selection.png) | ![Running](screenshots/christmas_mode.png) |
+
 ## Prerequisites
 
 - Android Studio Hedgehog (2023.1.1) or newer
