@@ -2,9 +2,12 @@ package com.example.huego.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,11 +18,32 @@ import androidx.compose.ui.unit.dp
 import com.example.huego.model.ColorScheme
 import android.content.res.Configuration
 import com.example.huego.ui.theme.HueGoTheme
+import com.example.huego.model.HueLight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Lightbulb  // Regular bulb
+import androidx.compose.material.icons.filled.WbIncandescent  // Ambient light
+import androidx.compose.material.icons.filled.Light  // Strip light
+import androidx.compose.material.icons.filled.LightMode  // Go light
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material3.Icon
+
+@Composable
+private fun getLightIcon(productName: String): ImageVector {
+    return when {
+        productName.contains("go", ignoreCase = true) -> Icons.Default.LightMode
+        productName.contains("strip", ignoreCase = true) -> Icons.Default.Light
+        productName.contains("bloom", ignoreCase = true) || 
+        productName.contains("iris", ignoreCase = true) -> Icons.Default.WbIncandescent
+        else -> Icons.Default.Lightbulb
+    }
+}
 
 @Composable
 fun ConnectedState(
     isRunning: Boolean,
     selectedScheme: ColorScheme?,
+    availableLights: List<HueLight>,
+    onLightToggled: (String) -> Unit,
     onSchemeSelected: (ColorScheme) -> Unit,
     onStop: () -> Unit
 ) {
@@ -27,6 +51,44 @@ fun ConnectedState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        Text(
+            text = "Available Lights:",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        availableLights.forEach { light ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = getLightIcon(light.productName),
+                        contentDescription = "Light type",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Column {
+                        Text(light.name)
+                        Text(
+                            light.productName,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Checkbox(
+                    checked = light.isSelected,
+                    onCheckedChange = { onLightToggled(light.id) }
+                )
+            }
+        }
+
         if (!isRunning) {
             Text(
                 text = "Select a holiday light scheme:",
@@ -80,6 +142,12 @@ fun ConnectedState(
 )
 @Composable
 private fun ConnectedStatePreview() {
+    val sampleLights = listOf(
+        HueLight("1", "Living Room Go", "Hue Go", false),
+        HueLight("2", "Kitchen Strip", "Hue Strip", false),
+        HueLight("3", "Bedroom Bulb", "Hue Bulb", true)
+    )
+
     HueGoTheme {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -89,6 +157,8 @@ private fun ConnectedStatePreview() {
             ConnectedState(
                 isRunning = false,
                 selectedScheme = null,
+                availableLights = sampleLights,
+                onLightToggled = {},
                 onSchemeSelected = {},
                 onStop = {}
             )
@@ -113,6 +183,8 @@ private fun ConnectedStateRunningPreview() {
             ConnectedState(
                 isRunning = true,
                 selectedScheme = ColorScheme.CHRISTMAS,
+                availableLights = emptyList(),
+                onLightToggled = {},
                 onSchemeSelected = {},
                 onStop = {}
             )

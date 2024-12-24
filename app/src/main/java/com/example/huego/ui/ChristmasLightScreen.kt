@@ -37,6 +37,8 @@ fun ChristmasLightScreen(
             is HueViewModel.ConnectionState.Connected -> ConnectedState(
                 isRunning = isRunning,
                 selectedScheme = viewModel.currentScheme,
+                availableLights = viewModel.availableLights,
+                onLightToggled = viewModel::toggleLightSelection,
                 onSchemeSelected = { scheme ->
                     isRunning = true
                     viewModel.startColorCycle(scheme)

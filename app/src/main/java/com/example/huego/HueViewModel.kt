@@ -16,6 +16,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
 import com.example.huego.model.ColorScheme
+import com.example.huego.model.HueLight
 
 class HueViewModel(
     application: Application
@@ -57,6 +58,9 @@ class HueViewModel(
         mapOf("xy" to listOf(0.313f, 0.328f))  // White
     )
 
+    private var _availableLights = mutableStateOf<List<HueLight>>(emptyList())
+    val availableLights: List<HueLight> get() = _availableLights.value
+
     init {
         viewModelScope.launch {
             val credentials = repository.getCredentials()
@@ -74,7 +78,7 @@ class HueViewModel(
                         client.newCall(request).execute().use { response ->
                             if (response.isSuccessful) {
                                 Log.d(TAG, "Successfully verified cached credentials")
-                                connectionState = ConnectionState.Connected
+                                onConnectionEstablished()
                             } else {
                                 Log.w(TAG, "Cached credentials failed, starting fresh discovery")
                                 repository.clearCredentials()
@@ -187,7 +191,7 @@ class HueViewModel(
                                     discoveryMethod = "manual"
                                 )
                             }
-                            connectionState = ConnectionState.Connected
+                            onConnectionEstablished()
                         } else if (responseObj.has("error")) {
                             val error = responseObj.getJSONObject("error")
                             Log.w(TAG, "Error from bridge: ${error.getString("description")}")
@@ -223,51 +227,25 @@ class HueViewModel(
         withContext(Dispatchers.IO) {
             bridgeIp?.let { ip ->
                 username?.let { user ->
-                    Log.d(TAG, "Attempting to set light state. IP: $ip, Username: $user")
-                    val lightsRequest = Request.Builder()
-                        .url("http://$ip/api/$user/lights")
-                        .build()
-
-                    try {
-                        client.newCall(lightsRequest).execute().use { response ->
-                            val responseBody = response.body?.string() ?: "{}"
-                            Log.d(TAG, "Lights response: $responseBody")
-                            val lights = JSONObject(responseBody)
-                            
-                            var foundGoLight = false
-                            lights.keys().forEach { lightId ->
-                                val light = lights.getJSONObject(lightId)
-                                val productName = light.getString("productname")
-                                Log.d(TAG, "Found light $lightId with product name: $productName")
-                                
-                                if (productName.contains("Go", ignoreCase = true)) {
-                                    foundGoLight = true
-                                    val stateJson = JSONObject(state).apply {
-                                        put("on", true)
-                                        put("bri", 254)
-                                    }
-                                    Log.d(TAG, "Setting state for light $lightId: $stateJson")
-
-                                    val request = Request.Builder()
-                                        .url("http://$ip/api/$user/lights/$lightId/state")
-                                        .put(stateJson.toString().toRequestBody("application/json".toMediaType()))
-                                        .build()
-
-                                    client.newCall(request).execute().use { stateResponse ->
-                                        val stateResponseBody = stateResponse.body?.string()
-                                        Log.d(TAG, "State update response: $stateResponseBody")
-                                    }
-                                }
+                    availableLights.filter { it.isSelected }.forEach { light ->
+                        try {
+                            val stateJson = JSONObject(state).apply {
+                                put("on", true)
+                                put("bri", 254)
                             }
-                            
-                            if (!foundGoLight) {
-                                Log.w(TAG, "No Hue Go lights found!")
-                                connectionState = ConnectionState.Failed
+
+                            val request = Request.Builder()
+                                .url("http://$ip/api/$user/lights/${light.id}/state")
+                                .put(stateJson.toString().toRequestBody("application/json".toMediaType()))
+                                .build()
+
+                            client.newCall(request).execute().use { stateResponse ->
+                                val stateResponseBody = stateResponse.body?.string()
+                                Log.d(TAG, "State update response for light ${light.name}: $stateResponseBody")
                             }
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error setting state for light ${light.name}", e)
                         }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error setting light state", e)
-                        connectionState = ConnectionState.Failed
                     }
                 }
             }
@@ -296,5 +274,54 @@ class HueViewModel(
         super.onCleared()
         stopColorCycle()
         client.dispatcher.executorService.shutdown()
+    }
+
+    private suspend fun fetchLights() {
+        withContext(Dispatchers.IO) {
+            bridgeIp?.let { ip ->
+                username?.let { user ->
+                    try {
+                        val request = Request.Builder()
+                            .url("http://$ip/api/$user/lights")
+                            .build()
+
+                        client.newCall(request).execute().use { response ->
+                            val responseBody = response.body?.string() ?: "{}"
+                            Log.d(TAG, "Lights response: $responseBody")
+                            val lights = JSONObject(responseBody)
+                            
+                            val lightsList = mutableListOf<HueLight>()
+                            lights.keys().forEach { lightId ->
+                                val light = lights.getJSONObject(lightId)
+                                lightsList.add(
+                                    HueLight(
+                                        id = lightId,
+                                        name = light.getString("name"),
+                                        productName = light.getString("productname")
+                                    )
+                                )
+                            }
+                            _availableLights.value = lightsList
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error fetching lights", e)
+                    }
+                }
+            }
+        }
+    }
+
+    fun toggleLightSelection(lightId: String) {
+        _availableLights.value = _availableLights.value.map { light ->
+            if (light.id == lightId) light.copy(isSelected = !light.isSelected)
+            else light
+        }
+    }
+
+    private fun onConnectionEstablished() {
+        connectionState = ConnectionState.Connected
+        viewModelScope.launch {
+            fetchLights()
+        }
     }
 } 
