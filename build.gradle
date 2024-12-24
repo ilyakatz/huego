@@ -1,0 +1,11 @@
+buildscript {
+    ext {
+        compose_version = '1.5.4'
+        kotlin_version = '1.9.20'
+        java_version = JavaVersion.VERSION_17
+    }
+}
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
+} 
